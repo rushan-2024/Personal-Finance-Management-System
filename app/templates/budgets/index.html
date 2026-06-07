@@ -1,0 +1,208 @@
+{% extends "base.html" %}
+{% block title %}Budgets{% endblock %}
+{% block page_title %}Budgets{% endblock %}
+{% block page_sub %}Track spending against your monthly limits{% endblock %}
+
+{% block head %}
+<script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.3/dist/chart.umd.min.js"></script>
+{% endblock %}
+
+{% block content %}
+<div class="grid-2">
+  <!-- Budget Status -->
+  <div>
+    <div class="card mb-2">
+      <div class="card-header">
+        <span class="card-title">{{ today.strftime('%B %Y') }} Budgets</span>
+        <span class="badge {% if budgets %}badge-green{% else %}badge-gray{% endif %}">
+          {{ budgets|length }} active
+        </span>
+      </div>
+
+      {% if budgets %}
+        {% for b in budgets %}
+        <div style="margin-bottom:18px;">
+          <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:6px;">
+            <div style="display:flex;align-items:center;gap:8px;">
+              {% if b.category %}
+              <div style="width:28px;height:28px;border-radius:6px;background:{{ b.category.color }}22;color:{{ b.category.color }};display:flex;align-items:center;justify-content:center;font-size:14px;">
+                <i class="ti {{ b.category.icon }}"></i>
+              </div>
+              {% endif %}
+              <span style="font-size:13px;font-weight:500;">{{ b.name }}</span>
+            </div>
+            <div style="display:flex;align-items:center;gap:8px;">
+              <span style="font-size:12px;color:{% if b.status=='danger' %}var(--red){% elif b.status=='warning' %}var(--amber){% else %}var(--text-muted){% endif %};font-weight:500;">
+                ₹{{ b.spent | inr }} / ₹{{ b.amount | inr }}
+              </span>
+              <span class="badge {% if b.status=='danger' %}badge-red{% elif b.status=='warning' %}badge-amber{% else %}badge-green{% endif %}">
+                {{ b.percent|round(0)|int }}%
+              </span>
+              <form method="POST" action="{{ url_for('budgets.delete', budget_id=b.id) }}"
+                    onsubmit="return confirm('Remove this budget?');" style="margin:0;">
+                <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                <button type="submit" style="background:none;border:none;cursor:pointer;color:var(--text-muted);font-size:14px;padding:2px;">
+                  <i class="ti ti-trash"></i>
+                </button>
+              </form>
+            </div>
+          </div>
+          <div class="progress">
+            <div class="progress-fill" style="width:{{ [b.percent, 100]|min }}%;background:{% if b.status=='danger' %}var(--red){% elif b.status=='warning' %}var(--amber){% else %}var(--green){% endif %};"></div>
+          </div>
+          {% if b.status == 'danger' %}
+          <div style="font-size:11px;color:var(--red);margin-top:4px;display:flex;align-items:center;gap:4px;">
+            <i class="ti ti-alert-triangle"></i> Budget exceeded!
+          </div>
+          {% elif b.status == 'warning' %}
+          <div style="font-size:11px;color:var(--amber);margin-top:4px;display:flex;align-items:center;gap:4px;">
+            <i class="ti ti-alert-circle"></i> Approaching limit ({{ b.alert_threshold|round(0)|int }}% threshold)
+          </div>
+          {% endif %}
+        </div>
+        {% endfor %}
+      {% else %}
+        <div style="text-align:center;padding:32px;color:var(--text-muted);">
+          <i class="ti ti-wallet" style="font-size:36px;display:block;margin-bottom:10px;"></i>
+          No budgets set for this month.<br>
+          <span style="font-size:12px;">Add one using the form →</span>
+        </div>
+      {% endif %}
+    </div>
+
+    <!-- Budget vs Actual Chart -->
+    {% if budgets %}
+    <div class="card">
+      <div class="card-header">
+        <span class="card-title">Budget vs Actual</span>
+      </div>
+      <div style="position:relative;height:220px;">
+        <canvas id="budgetChart" role="img" aria-label="Budget vs actual bar chart">Comparison of budgeted versus actual spending per category.</canvas>
+      </div>
+    </div>
+    {% endif %}
+  </div>
+
+  <!-- Add Budget Form -->
+  <div>
+    <div class="card">
+      <div class="card-header">
+        <span class="card-title">Create New Budget</span>
+      </div>
+      <form method="POST" action="{{ url_for('budgets.add') }}">
+        <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+
+        <div class="form-group">
+          <label class="form-label">Budget Name</label>
+          <input type="text" name="name" class="form-control" placeholder="e.g. Food & Dining" required>
+        </div>
+
+        <div class="form-group">
+          <label class="form-label">Category (optional)</label>
+          <select name="category_id" class="form-control">
+            <option value="">— No specific category —</option>
+            {% for cat in categories %}
+            <option value="{{ cat.id }}">{{ cat.name }}</option>
+            {% endfor %}
+          </select>
+        </div>
+
+        <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px;">
+          <div class="form-group">
+            <label class="form-label">Budget Amount</label>
+            <input type="number" name="amount" class="form-control font-mono"
+                   placeholder="10000" min="1" step="1" required>
+          </div>
+          <div class="form-group">
+            <label class="form-label">Alert At (%)</label>
+            <input type="number" name="alert_threshold" class="form-control"
+                   value="80" min="10" max="100" step="5">
+          </div>
+        </div>
+
+        <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px;">
+          <div class="form-group">
+            <label class="form-label">Month</label>
+            <select name="month" class="form-control">
+              {% for m in range(1, 13) %}
+              <option value="{{ m }}" {% if m == today.month %}selected{% endif %}>
+                {{ ['','Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'][m] }}
+              </option>
+              {% endfor %}
+            </select>
+          </div>
+          <div class="form-group">
+            <label class="form-label">Year</label>
+            <select name="year" class="form-control">
+              {% for y in [today.year - 1, today.year, today.year + 1] %}
+              <option value="{{ y }}" {% if y == today.year %}selected{% endif %}>{{ y }}</option>
+              {% endfor %}
+            </select>
+          </div>
+        </div>
+
+        <button type="submit" class="btn btn-primary w-full">
+          <i class="ti ti-plus"></i> Create Budget
+        </button>
+      </form>
+    </div>
+
+    <!-- Tips -->
+    <div class="card mt-2" style="background:var(--green-lt);border-color:#9FE1CB;">
+      <div style="font-size:13px;font-weight:600;color:var(--green-dk);margin-bottom:10px;">
+        <i class="ti ti-bulb"></i> Budgeting Tips
+      </div>
+      <ul style="font-size:12px;color:var(--green-dk);padding-left:16px;line-height:1.8;">
+        <li>Follow the <strong>50/30/20 rule</strong>: 50% needs, 30% wants, 20% savings</li>
+        <li>Set alerts at <strong>80%</strong> to stay ahead of overspending</li>
+        <li>Review budgets at the start of each month</li>
+        <li>Track even small subscriptions — they add up!</li>
+      </ul>
+    </div>
+  </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+{% if budgets %}
+<script>
+const budgetData = {
+  labels: {{ budgets | map(attribute='name') | list | tojson }},
+  budget: {{ budgets | map(attribute='amount') | list | tojson }},
+  spent:  {{ budgets | map(attribute='spent')  | list | tojson }},
+};
+const ctx = document.getElementById('budgetChart').getContext('2d');
+new Chart(ctx, {
+  type: 'bar',
+  data: {
+    labels: budgetData.labels,
+    datasets: [
+      {
+        label: 'Budget',
+        data: budgetData.budget,
+        backgroundColor: 'rgba(29,158,117,0.15)',
+        borderColor: '#1D9E75', borderWidth: 1.5,
+        borderRadius: 5,
+      },
+      {
+        label: 'Spent',
+        data: budgetData.spent,
+        backgroundColor: budgetData.spent.map((s, i) =>
+          s > budgetData.budget[i] ? '#E24B4A' : s / budgetData.budget[i] > 0.8 ? '#BA7517' : '#1D9E75'
+        ),
+        borderRadius: 5,
+      },
+    ],
+  },
+  options: {
+    responsive: true, maintainAspectRatio: false,
+    plugins: { legend: { display: false } },
+    scales: {
+      y: { ticks: { callback: v => '₹' + (v/1000).toFixed(0) + 'k', font: { size: 11 } }, grid: { color: 'rgba(0,0,0,0.04)' } },
+      x: { ticks: { font: { size: 11 } }, grid: { display: false } },
+    },
+  },
+});
+</script>
+{% endif %}
+{% endblock %}

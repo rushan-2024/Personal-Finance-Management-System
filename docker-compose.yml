@@ -1,0 +1,51 @@
+version: "3.9"
+
+services:
+  # ── PostgreSQL database ──────────────────────────────────────────────────
+  db:
+    image: postgres:16-alpine
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: finflow
+      POSTGRES_PASSWORD: finflow_secret
+      POSTGRES_DB: finflow
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U finflow"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  # ── Flask application ────────────────────────────────────────────────────
+  web:
+    build: .
+    restart: unless-stopped
+    ports:
+      - "5000:5000"
+    env_file:
+      - .env
+    environment:
+      DATABASE_URL: postgresql://finflow:finflow_secret@db:5432/finflow
+      FLASK_ENV: production
+    volumes:
+      - uploads:/app/app/static/uploads
+    depends_on:
+      db:
+        condition: service_healthy
+
+  # ── Nginx reverse proxy ──────────────────────────────────────────────────
+  nginx:
+    image: nginx:alpine
+    restart: unless-stopped
+    ports:
+      - "80:80"
+    volumes:
+      - ./docker/nginx.conf:/etc/nginx/conf.d/default.conf:ro
+      - uploads:/app/static/uploads:ro
+    depends_on:
+      - web
+
+volumes:
+  postgres_data:
+  uploads:

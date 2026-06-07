@@ -1,0 +1,182 @@
+{% extends "base.html" %}
+{% block title %}Reports & Export{% endblock %}
+{% block page_title %}Reports & Export{% endblock %}
+{% block page_sub %}Download your financial data in multiple formats{% endblock %}
+
+{% block head %}
+<script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.3/dist/chart.umd.min.js"></script>
+{% endblock %}
+
+{% block content %}
+<div class="grid-2">
+  <!-- Export Panel -->
+  <div>
+    <div class="card mb-2">
+      <div class="card-header">
+        <span class="card-title">Export Data</span>
+        <span class="badge badge-blue">3 formats</span>
+      </div>
+      <div class="form-group">
+        <label class="form-label">Date Range</label>
+        <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;">
+          <div>
+            <label class="form-label">From</label>
+            <input type="date" id="startDate" class="form-control" value="{{ default_start }}">
+          </div>
+          <div>
+            <label class="form-label">To</label>
+            <input type="date" id="endDate" class="form-control" value="{{ default_end }}">
+          </div>
+        </div>
+      </div>
+
+      <div style="display:flex;flex-direction:column;gap:10px;margin-top:8px;">
+        <button onclick="exportFile('pdf')" class="btn"
+          style="justify-content:flex-start;gap:12px;padding:14px 16px;border-radius:10px;">
+          <div style="width:36px;height:36px;background:#FCEBEB;border-radius:8px;display:flex;align-items:center;justify-content:center;color:var(--red);font-size:18px;flex-shrink:0;">
+            <i class="ti ti-file-type-pdf"></i>
+          </div>
+          <div>
+            <div style="font-weight:600;font-size:13px;">Export as PDF</div>
+            <div style="font-size:11px;color:var(--text-muted);">Formatted report with summary and transaction table</div>
+          </div>
+          <i class="ti ti-download" style="margin-left:auto;color:var(--text-muted);"></i>
+        </button>
+
+        <button onclick="exportFile('excel')" class="btn"
+          style="justify-content:flex-start;gap:12px;padding:14px 16px;border-radius:10px;">
+          <div style="width:36px;height:36px;background:#E1F5EE;border-radius:8px;display:flex;align-items:center;justify-content:center;color:var(--green);font-size:18px;flex-shrink:0;">
+            <i class="ti ti-file-spreadsheet"></i>
+          </div>
+          <div>
+            <div style="font-weight:600;font-size:13px;">Export as Excel</div>
+            <div style="font-size:11px;color:var(--text-muted);">Transactions + Summary sheet (.xlsx)</div>
+          </div>
+          <i class="ti ti-download" style="margin-left:auto;color:var(--text-muted);"></i>
+        </button>
+
+        <button onclick="exportFile('csv')" class="btn"
+          style="justify-content:flex-start;gap:12px;padding:14px 16px;border-radius:10px;">
+          <div style="width:36px;height:36px;background:#E6F1FB;border-radius:8px;display:flex;align-items:center;justify-content:center;color:var(--blue);font-size:18px;flex-shrink:0;">
+            <i class="ti ti-file-text"></i>
+          </div>
+          <div>
+            <div style="font-weight:600;font-size:13px;">Export as CSV</div>
+            <div style="font-size:11px;color:var(--text-muted);">Raw data for spreadsheets and analysis tools</div>
+          </div>
+          <i class="ti ti-download" style="margin-left:auto;color:var(--text-muted);"></i>
+        </button>
+      </div>
+    </div>
+
+    <!-- Quick ranges -->
+    <div class="card">
+      <div class="card-header"><span class="card-title">Quick Ranges</span></div>
+      <div style="display:flex;flex-wrap:wrap;gap:8px;">
+        {% set now = today_date %}
+        <button class="btn btn-sm" onclick="setRange('this-month')">This Month</button>
+        <button class="btn btn-sm" onclick="setRange('last-month')">Last Month</button>
+        <button class="btn btn-sm" onclick="setRange('last-3')">Last 3 Months</button>
+        <button class="btn btn-sm" onclick="setRange('this-year')">This Year</button>
+        <button class="btn btn-sm" onclick="setRange('last-year')">Last Year</button>
+        <button class="btn btn-sm" onclick="setRange('all')">All Time</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Info + Tips -->
+  <div>
+    <div class="card mb-2">
+      <div class="card-header">
+        <span class="card-title">Report Contents</span>
+      </div>
+      <div style="display:flex;flex-direction:column;gap:12px;">
+        <div style="display:flex;gap:10px;align-items:flex-start;">
+          <i class="ti ti-check-circle" style="color:var(--green);font-size:18px;flex-shrink:0;margin-top:1px;"></i>
+          <div>
+            <div style="font-size:13px;font-weight:500;">Financial Summary</div>
+            <div style="font-size:12px;color:var(--text-muted);">Total income, expense, savings, and savings rate for the period</div>
+          </div>
+        </div>
+        <div style="display:flex;gap:10px;align-items:flex-start;">
+          <i class="ti ti-check-circle" style="color:var(--green);font-size:18px;flex-shrink:0;margin-top:1px;"></i>
+          <div>
+            <div style="font-size:13px;font-weight:500;">All Transactions</div>
+            <div style="font-size:12px;color:var(--text-muted);">Detailed list with date, description, category, and amount</div>
+          </div>
+        </div>
+        <div style="display:flex;gap:10px;align-items:flex-start;">
+          <i class="ti ti-check-circle" style="color:var(--green);font-size:18px;flex-shrink:0;margin-top:1px;"></i>
+          <div>
+            <div style="font-size:13px;font-weight:500;">Category Breakdown (Excel)</div>
+            <div style="font-size:12px;color:var(--text-muted);">Spending grouped by category in a separate sheet</div>
+          </div>
+        </div>
+        <div style="display:flex;gap:10px;align-items:flex-start;">
+          <i class="ti ti-check-circle" style="color:var(--green);font-size:18px;flex-shrink:0;margin-top:1px;"></i>
+          <div>
+            <div style="font-size:13px;font-weight:500;">Branded PDF with FinFlow header</div>
+            <div style="font-size:12px;color:var(--text-muted);">Professional layout suitable for sharing or printing</div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <div class="card" style="background:var(--blue-lt);border-color:#B5D4F4;">
+      <div style="font-size:13px;font-weight:600;color:var(--blue);margin-bottom:8px;">
+        <i class="ti ti-info-circle"></i> REST API Export
+      </div>
+      <div style="font-size:12px;color:#0C447C;line-height:1.7;">
+        You can also export data programmatically via the REST API:<br>
+        <code style="background:#fff;padding:2px 6px;border-radius:4px;font-size:11px;">GET /api/v1/transactions?page=1&per_page=100</code><br>
+        Authenticate with your JWT token from <code style="background:#fff;padding:2px 6px;border-radius:4px;font-size:11px;">POST /api/v1/auth/login</code>
+      </div>
+    </div>
+  </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+function getDateRange() {
+  return {
+    start: document.getElementById('startDate').value,
+    end:   document.getElementById('endDate').value,
+  };
+}
+
+function exportFile(format) {
+  const { start, end } = getDateRange();
+  if (!start || !end) { alert('Please select a date range.'); return; }
+  window.location.href = `/reports/export/${format}?start=${start}&end=${end}`;
+}
+
+function setRange(range) {
+  const now   = new Date();
+  let start, end;
+  const fmt = d => d.toISOString().split('T')[0];
+
+  if (range === 'this-month') {
+    start = fmt(new Date(now.getFullYear(), now.getMonth(), 1));
+    end   = fmt(now);
+  } else if (range === 'last-month') {
+    start = fmt(new Date(now.getFullYear(), now.getMonth() - 1, 1));
+    end   = fmt(new Date(now.getFullYear(), now.getMonth(), 0));
+  } else if (range === 'last-3') {
+    start = fmt(new Date(now.getFullYear(), now.getMonth() - 3, 1));
+    end   = fmt(now);
+  } else if (range === 'this-year') {
+    start = fmt(new Date(now.getFullYear(), 0, 1));
+    end   = fmt(now);
+  } else if (range === 'last-year') {
+    start = fmt(new Date(now.getFullYear() - 1, 0, 1));
+    end   = fmt(new Date(now.getFullYear() - 1, 11, 31));
+  } else {
+    start = '2020-01-01';
+    end   = fmt(now);
+  }
+  document.getElementById('startDate').value = start;
+  document.getElementById('endDate').value   = end;
+}
+</script>
+{% endblock %}

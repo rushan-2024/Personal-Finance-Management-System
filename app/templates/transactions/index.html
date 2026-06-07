@@ -1,0 +1,147 @@
+{% extends "base.html" %}
+{% block title %}Transactions{% endblock %}
+{% block page_title %}Transactions{% endblock %}
+{% block page_sub %}Manage and search your financial records{% endblock %}
+
+{% block topbar_actions %}
+  <a href="{{ url_for('transactions.add') }}" class="btn btn-primary">
+    <i class="ti ti-plus"></i> Add Transaction
+  </a>
+  <a href="{{ url_for('reports.index') }}" class="btn">
+    <i class="ti ti-download"></i> Export
+  </a>
+{% endblock %}
+
+{% block content %}
+<!-- Filters -->
+<div class="card mb-3">
+  <form method="GET" action="{{ url_for('transactions.index') }}" style="display:flex;flex-wrap:wrap;gap:10px;align-items:flex-end;">
+    <div style="flex:1;min-width:160px;">
+      <label class="form-label">Search</label>
+      <input type="text" name="q" class="form-control" placeholder="Description…" value="{{ filters.q }}">
+    </div>
+    <div style="min-width:140px;">
+      <label class="form-label">Category</label>
+      <select name="category" class="form-control">
+        <option value="">All categories</option>
+        {% for cat in categories %}
+          <option value="{{ cat.id }}" {% if filters.category == cat.id %}selected{% endif %}>{{ cat.name }}</option>
+        {% endfor %}
+      </select>
+    </div>
+    <div style="min-width:120px;">
+      <label class="form-label">Type</label>
+      <select name="type" class="form-control">
+        <option value="">All types</option>
+        <option value="income"  {% if filters.type == 'income'  %}selected{% endif %}>Income</option>
+        <option value="expense" {% if filters.type == 'expense' %}selected{% endif %}>Expense</option>
+      </select>
+    </div>
+    <div style="min-width:130px;">
+      <label class="form-label">From</label>
+      <input type="date" name="start" class="form-control" value="{{ filters.start }}">
+    </div>
+    <div style="min-width:130px;">
+      <label class="form-label">To</label>
+      <input type="date" name="end" class="form-control" value="{{ filters.end }}">
+    </div>
+    <div style="display:flex;gap:6px;">
+      <button type="submit" class="btn btn-primary"><i class="ti ti-search"></i> Filter</button>
+      <a href="{{ url_for('transactions.index') }}" class="btn"><i class="ti ti-x"></i></a>
+    </div>
+  </form>
+</div>
+
+<!-- Table -->
+<div class="table-wrap">
+  <table>
+    <thead>
+      <tr>
+        <th>Date</th>
+        <th>Description</th>
+        <th>Category</th>
+        <th>Type</th>
+        <th class="text-right">Amount</th>
+        <th style="width:80px;">Actions</th>
+      </tr>
+    </thead>
+    <tbody>
+      {% if transactions.items %}
+        {% for txn in transactions.items %}
+        <tr>
+          <td style="color:var(--text-muted);font-size:12px;white-space:nowrap;">
+            {{ txn.date.strftime('%d %b %Y') }}
+          </td>
+          <td>
+            <div style="font-weight:500;font-size:13px;">{{ txn.description or '—' }}</div>
+            {% if txn.tags %}
+            <div style="font-size:11px;color:var(--text-muted);">{{ txn.tags }}</div>
+            {% endif %}
+          </td>
+          <td>
+            {% if txn.category %}
+            <span class="badge badge-gray">
+              <i class="ti {{ txn.category.icon }}" style="font-size:12px;"></i>
+              {{ txn.category.name }}
+            </span>
+            {% else %}
+            <span style="color:var(--text-muted);font-size:12px;">—</span>
+            {% endif %}
+          </td>
+          <td>
+            <span class="badge {% if txn.type == 'income' %}badge-green{% else %}badge-red{% endif %}">
+              {{ txn.type.title() }}
+            </span>
+          </td>
+          <td class="text-right font-mono" style="font-weight:600;color:{% if txn.type == 'income' %}var(--green){% else %}var(--red){% endif %};">
+            {% if txn.type == 'income' %}+{% else %}-{% endif %}₹{{ txn.amount | inr2 }}
+          </td>
+          <td>
+            <div style="display:flex;gap:4px;">
+              <a href="{{ url_for('transactions.edit', txn_id=txn.id) }}" class="btn btn-sm btn-icon" title="Edit">
+                <i class="ti ti-edit"></i>
+              </a>
+              <form method="POST" action="{{ url_for('transactions.delete', txn_id=txn.id) }}"
+                    onsubmit="return confirm('Delete this transaction?');" style="margin:0;">
+                <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                <button type="submit" class="btn btn-sm btn-icon" title="Delete" style="color:var(--red);">
+                  <i class="ti ti-trash"></i>
+                </button>
+              </form>
+            </div>
+          </td>
+        </tr>
+        {% endfor %}
+      {% else %}
+        <tr>
+          <td colspan="6" style="text-align:center;padding:40px;color:var(--text-muted);">
+            <i class="ti ti-inbox" style="font-size:32px;display:block;margin-bottom:8px;"></i>
+            No transactions found.
+            <a href="{{ url_for('transactions.add') }}" style="color:var(--green);">Add your first one →</a>
+          </td>
+        </tr>
+      {% endif %}
+    </tbody>
+  </table>
+</div>
+
+<!-- Pagination -->
+{% if transactions.pages > 1 %}
+<div class="pagination" style="justify-content:center;margin-top:20px;">
+  {% if transactions.has_prev %}
+    <a href="{{ url_for('transactions.index', page=transactions.prev_num, **filters) }}" class="page-link">← Prev</a>
+  {% endif %}
+  {% for p in transactions.iter_pages(left_edge=1, right_edge=1, left_current=2, right_current=2) %}
+    {% if p %}
+      <a href="{{ url_for('transactions.index', page=p, **filters) }}"
+         class="page-link {% if p == transactions.page %}active{% endif %}">{{ p }}</a>
+    {% else %}
+      <span class="page-link" style="color:var(--text-muted);">…</span>
+    {% endif %}
+  {% endfor %}
+  {% if transactions.has_next %}
+    <a href="{{ url_for('transactions.index', page=transactions.next_num, **filters) }}" class="page-link">Next →</a>
+  {% endif %}
+</div>
+{% endif %}
+{% endblock %}

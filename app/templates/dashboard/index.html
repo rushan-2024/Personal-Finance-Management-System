@@ -1,0 +1,231 @@
+{% extends "base.html" %}
+{% block title %}Dashboard{% endblock %}
+{% block page_title %}Dashboard{% endblock %}
+{% block page_sub %}{{ today.strftime('%B %Y') }} · {{ current_user.currency }}{% endblock %}
+
+{% block topbar_actions %}
+  <a href="{{ url_for('transactions.add') }}" class="btn btn-primary">
+    <i class="ti ti-plus"></i> Add Transaction
+  </a>
+{% endblock %}
+
+{% block head %}
+<script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.3/dist/chart.umd.min.js"></script>
+{% endblock %}
+
+{% block content %}
+<!-- Metric Cards -->
+<div class="metrics-grid">
+  <div class="metric-card">
+    <div class="metric-label"><i class="ti ti-wallet"></i> Total Balance</div>
+    <div class="metric-value font-mono">₹{{ summary.balance | inr }}</div>
+    <div class="metric-change text-success"><i class="ti ti-trending-up"></i> Net this month</div>
+  </div>
+  <div class="metric-card">
+    <div class="metric-label" style="color:var(--green)"><i class="ti ti-arrow-up-circle"></i> Income</div>
+    <div class="metric-value font-mono text-success">₹{{ summary.income | inr }}</div>
+    <div class="metric-change text-muted"><i class="ti ti-calendar"></i> Current month</div>
+  </div>
+  <div class="metric-card">
+    <div class="metric-label" style="color:var(--red)"><i class="ti ti-arrow-down-circle"></i> Expenses</div>
+    <div class="metric-value font-mono text-danger">₹{{ summary.expense | inr }}</div>
+    <div class="metric-change text-muted"><i class="ti ti-calendar"></i> Current month</div>
+  </div>
+  <div class="metric-card">
+    <div class="metric-label" style="color:var(--blue)"><i class="ti ti-piggy-bank"></i> Savings Rate</div>
+    <div class="metric-value font-mono text-info">{{ summary.savings_rate }}%</div>
+    <div class="metric-change {% if summary.savings_rate >= 20 %}text-success{% else %}text-warning{% endif %}">
+      <i class="ti ti-{% if summary.savings_rate >= 20 %}circle-check{% else %}alert-triangle{% endif %}"></i>
+      {% if summary.savings_rate >= 20 %}On track{% else %}Below 20% target{% endif %}
+    </div>
+  </div>
+</div>
+
+<!-- Charts Row -->
+<div class="grid-2">
+  <!-- Income vs Expense Chart -->
+  <div class="card">
+    <div class="card-header">
+      <span class="card-title">Income vs Expense (6 months)</span>
+      <span class="badge badge-green">Trend</span>
+    </div>
+    <div style="display:flex;gap:16px;margin-bottom:12px;">
+      <span style="display:flex;align-items:center;gap:5px;font-size:11px;color:var(--text-muted)">
+        <span style="width:10px;height:10px;border-radius:2px;background:#1D9E75;display:inline-block;"></span> Income
+      </span>
+      <span style="display:flex;align-items:center;gap:5px;font-size:11px;color:var(--text-muted)">
+        <span style="width:10px;height:10px;border-radius:2px;background:#E24B4A;display:inline-block;"></span> Expense
+      </span>
+    </div>
+    <div style="position:relative;height:200px;">
+      <canvas id="lineChart"></canvas>
+    </div>
+  </div>
+
+  <!-- Expense Breakdown Pie -->
+  <div class="card">
+    <div class="card-header">
+      <span class="card-title">Expense Breakdown</span>
+      <span class="badge badge-amber">By category</span>
+    </div>
+    {% if pie_data.pie_items %}
+    <div style="display:flex;gap:20px;align-items:center;">
+      <div style="position:relative;height:160px;width:160px;flex-shrink:0;">
+        <canvas id="pieChart"></canvas>
+      </div>
+      <div style="flex:1;">
+        {% for entry in pie_data.pie_items %}
+        <div style="display:flex;align-items:center;gap:7px;margin-bottom:7px;font-size:12px;">
+          <span style="width:10px;height:10px;border-radius:50%;background:{{ entry.color }};flex-shrink:0;"></span>
+          <span style="flex:1;color:var(--text-muted);">{{ entry.label }}</span>
+          <span style="font-weight:600;">₹{{ entry.value | inr }}</span>
+        </div>
+        {% endfor %}
+      </div>
+    </div>
+    {% else %}
+    <p class="text-muted" style="font-size:13px;text-align:center;padding:40px 0;">No expense data yet this month.</p>
+    {% endif %}
+  </div>
+</div>
+
+<!-- Bottom Row -->
+<div class="grid-2">
+  <!-- Recent Transactions -->
+  <div class="card">
+    <div class="card-header">
+      <span class="card-title">Recent Transactions</span>
+      <a href="{{ url_for('transactions.index') }}" class="badge badge-blue" style="text-decoration:none;">View all →</a>
+    </div>
+    {% if summary.recent_transactions %}
+      {% for txn in summary.recent_transactions %}
+      <div style="display:flex;align-items:center;gap:12px;padding:9px 0;border-bottom:1px solid var(--border);">
+        <div style="width:34px;height:34px;border-radius:8px;display:flex;align-items:center;justify-content:center;font-size:15px;
+          background:{% if txn.type == 'income' %}var(--green-lt){% else %}var(--red-lt){% endif %};
+          color:{% if txn.type == 'income' %}var(--green){% else %}var(--red){% endif %};flex-shrink:0;">
+          <i class="ti ti-{% if txn.category %}{{ txn.category.icon | replace('ti-','') }}{% else %}tag{% endif %}"></i>
+        </div>
+        <div style="flex:1;min-width:0;">
+          <div style="font-size:13px;font-weight:500;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">
+            {{ txn.description or 'Transaction' }}
+          </div>
+          <div style="font-size:11px;color:var(--text-muted);">
+            {{ txn.category.name if txn.category else 'Uncategorized' }} · {{ txn.date }}
+          </div>
+        </div>
+        <div style="font-size:13px;font-weight:600;white-space:nowrap;
+          color:{% if txn.type == 'income' %}var(--green){% else %}var(--red){% endif %};">
+          {% if txn.type == 'income' %}+{% else %}-{% endif %}₹{{ txn.amount | inr }}
+        </div>
+      </div>
+      {% endfor %}
+    {% else %}
+      <p class="text-muted" style="font-size:13px;text-align:center;padding:30px 0;">
+        No transactions yet. <a href="{{ url_for('transactions.add') }}" style="color:var(--green);">Add one →</a>
+      </p>
+    {% endif %}
+  </div>
+
+  <!-- Budget + AI Insight -->
+  <div style="display:flex;flex-direction:column;gap:20px;">
+    <div class="card">
+      <div class="card-header">
+        <span class="card-title">Budget Overview</span>
+        <a href="{{ url_for('budgets.index') }}" class="badge badge-blue" style="text-decoration:none;">Manage →</a>
+      </div>
+      {% if budgets %}
+        {% for b in budgets[:4] %}
+        <div style="margin-bottom:12px;">
+          <div style="display:flex;justify-content:space-between;font-size:12px;margin-bottom:5px;">
+            <span>{{ b.name }}</span>
+            <span style="font-weight:500;color:{% if b.status=='danger' %}var(--red){% elif b.status=='warning' %}var(--amber){% else %}var(--text-muted){% endif %}">
+              ₹{{ b.spent | inr }} / ₹{{ b.amount | inr }}
+            </span>
+          </div>
+          <div class="progress">
+            <div class="progress-fill" style="width:{{ [b.percent, 100]|min }}%;background:{% if b.status=='danger' %}var(--red){% elif b.status=='warning' %}var(--amber){% else %}var(--green){% endif %};"></div>
+          </div>
+        </div>
+        {% endfor %}
+      {% else %}
+        <p class="text-muted" style="font-size:13px;text-align:center;padding:20px 0;">
+          <a href="{{ url_for('budgets.index') }}" style="color:var(--green);">Set up budgets →</a>
+        </p>
+      {% endif %}
+    </div>
+
+    {% if insights %}
+    {% set ins = insights[0] %}
+    <div class="insight-card">
+      <div class="insight-icon" style="background:{{ ins.bg }};color:{{ ins.color }};">
+        <i class="ti {{ ins.icon }}"></i>
+      </div>
+      <div>
+        <div class="insight-title">{{ ins.title }}</div>
+        <div class="insight-desc">{{ ins.desc }}</div>
+        <a href="#insights" style="font-size:11px;color:var(--green);text-decoration:none;margin-top:4px;display:inline-block;">
+          View all insights →
+        </a>
+      </div>
+    </div>
+    {% endif %}
+  </div>
+</div>
+
+<!-- AI Insights -->
+{% if insights %}
+<div style="margin-top:8px;">
+  <div style="font-size:13px;font-weight:600;margin-bottom:14px;" id="insights">🧠 AI Insights</div>
+  <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(300px,1fr));gap:12px;">
+    {% for ins in insights %}
+    <div class="insight-card">
+      <div class="insight-icon" style="background:{{ ins.bg }};color:{{ ins.color }};">
+        <i class="ti {{ ins.icon }}"></i>
+      </div>
+      <div>
+        <div class="insight-title">{{ ins.title }}</div>
+        <div class="insight-desc">{{ ins.desc }}</div>
+      </div>
+    </div>
+    {% endfor %}
+  </div>
+</div>
+{% endif %}
+{% endblock %}
+
+{% block scripts %}
+<script>
+const chartData = {{ chart_data | tojson }};
+const pieData   = {{ pie_data  | tojson }};
+
+new Chart(document.getElementById('lineChart').getContext('2d'), {
+  type: 'line',
+  data: {
+    labels: chartData.labels,
+    datasets: [
+      { label:'Income',  data: chartData.income,  borderColor:'#1D9E75', backgroundColor:'rgba(29,158,117,0.08)', tension:0.4, fill:true, pointRadius:4, pointBackgroundColor:'#1D9E75' },
+      { label:'Expense', data: chartData.expense, borderColor:'#E24B4A', backgroundColor:'rgba(226,75,74,0.06)',   tension:0.4, fill:true, pointRadius:4, borderDash:[5,3], pointBackgroundColor:'#E24B4A' },
+    ],
+  },
+  options: {
+    responsive:true, maintainAspectRatio:false,
+    plugins:{ legend:{ display:false } },
+    scales:{
+      y:{ ticks:{ callback: v => '₹'+(v/1000).toFixed(0)+'k', font:{size:11} }, grid:{color:'rgba(0,0,0,0.04)'} },
+      x:{ ticks:{ font:{size:11} }, grid:{display:false} },
+    },
+  },
+});
+
+if (pieData.values && pieData.values.length > 0) {
+  new Chart(document.getElementById('pieChart').getContext('2d'), {
+    type: 'doughnut',
+    data: {
+      labels: pieData.labels,
+      datasets: [{ data: pieData.values, backgroundColor: pieData.colors, borderWidth:2, borderColor:'#fff' }],
+    },
+    options: { responsive:true, maintainAspectRatio:false, cutout:'65%', plugins:{ legend:{display:false} } },
+  });
+}
+</script>
+{% endblock %}

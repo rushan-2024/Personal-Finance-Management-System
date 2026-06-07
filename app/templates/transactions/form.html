@@ -1,0 +1,149 @@
+{% extends "base.html" %}
+{% block title %}{{ 'Edit' if action == 'edit' else 'Add' }} Transaction{% endblock %}
+{% block page_title %}{{ 'Edit' if action == 'edit' else 'Add' }} Transaction{% endblock %}
+{% block page_sub %}{% if action == 'edit' %}Update existing record{% else %}Record a new income or expense{% endif %}{% endblock %}
+
+{% block content %}
+<div style="max-width:600px;">
+  <div class="card">
+    <form method="POST" action="{{ url_for('transactions.' + action, txn_id=txn.id) if action == 'edit' else url_for('transactions.add') }}"
+          enctype="multipart/form-data">
+      <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+
+      <!-- Type selector -->
+      <div class="form-group">
+        <label class="form-label">Transaction Type</label>
+        <div style="display:flex;gap:10px;">
+          <label style="flex:1;cursor:pointer;">
+            <input type="radio" name="type" value="income" style="display:none;"
+              {% if not txn or txn.type == 'income' %}checked{% endif %}
+              onchange="setType('income')">
+            <div class="type-btn" id="btn-income"
+              style="text-align:center;padding:12px;border-radius:var(--radius-sm);border:2px solid {% if not txn or txn.type == 'income' %}var(--green){% else %}var(--border){% endif %};background:{% if not txn or txn.type == 'income' %}var(--green-lt){% else %}var(--surface){% endif %};color:{% if not txn or txn.type == 'income' %}var(--green){% else %}var(--text-muted){% endif %};font-weight:600;font-size:13px;transition:all 0.15s;">
+              <i class="ti ti-arrow-up-circle" style="font-size:20px;display:block;margin-bottom:4px;"></i>
+              Income
+            </div>
+          </label>
+          <label style="flex:1;cursor:pointer;">
+            <input type="radio" name="type" value="expense" style="display:none;"
+              {% if txn and txn.type == 'expense' %}checked{% endif %}
+              onchange="setType('expense')">
+            <div class="type-btn" id="btn-expense"
+              style="text-align:center;padding:12px;border-radius:var(--radius-sm);border:2px solid {% if txn and txn.type == 'expense' %}var(--red){% else %}var(--border){% endif %};background:{% if txn and txn.type == 'expense' %}var(--red-lt){% else %}var(--surface){% endif %};color:{% if txn and txn.type == 'expense' %}var(--red){% else %}var(--text-muted){% endif %};font-weight:600;font-size:13px;transition:all 0.15s;">
+              <i class="ti ti-arrow-down-circle" style="font-size:20px;display:block;margin-bottom:4px;"></i>
+              Expense
+            </div>
+          </label>
+        </div>
+      </div>
+
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:16px;">
+        <div class="form-group">
+          <label class="form-label">Amount ({{ current_user.currency }})</label>
+          <input type="number" name="amount" class="form-control font-mono"
+                 placeholder="0.00" step="0.01" min="0.01" required
+                 value="{{ txn.amount if txn else '' }}">
+        </div>
+        <div class="form-group">
+          <label class="form-label">Date</label>
+          <input type="date" name="date" class="form-control" required
+                 value="{{ txn.date.strftime('%Y-%m-%d') if txn else today }}">
+        </div>
+      </div>
+
+      <div class="form-group">
+        <label class="form-label">Category</label>
+        <select name="category_id" class="form-control">
+          <option value="">— Select category —</option>
+          {% for cat in categories %}
+          <option value="{{ cat.id }}" {% if txn and txn.category_id == cat.id %}selected{% endif %}>
+            {{ cat.name }} ({{ cat.type.title() }})
+          </option>
+          {% endfor %}
+        </select>
+      </div>
+
+      <div class="form-group">
+        <label class="form-label">Description</label>
+        <input type="text" name="description" class="form-control"
+               placeholder="e.g. Monthly salary, Grocery shopping…"
+               value="{{ txn.description if txn else '' }}">
+      </div>
+
+      <div class="form-group">
+        <label class="form-label">Tags <span style="color:var(--text-muted);font-weight:400;">(comma-separated, optional)</span></label>
+        <input type="text" name="tags" class="form-control"
+               placeholder="e.g. recurring, business, urgent"
+               value="{{ txn.tags if txn else '' }}">
+      </div>
+
+      <!-- OCR Upload (only for expense) -->
+      <div class="form-group" id="receipt-section" style="{{ 'display:none;' if txn and txn.type == 'income' else '' }}">
+        <label class="form-label">Scan Receipt <span style="color:var(--text-muted);font-weight:400;">(optional – auto-fills amount & date)</span></label>
+        <input type="file" name="receipt" id="receiptInput" accept="image/*" class="form-control"
+               onchange="scanReceipt(this)">
+        <div id="ocrStatus" style="font-size:12px;color:var(--text-muted);margin-top:6px;display:none;">
+          <i class="ti ti-loader" style="animation:spin 1s linear infinite;"></i> Scanning receipt…
+        </div>
+        <style>@keyframes spin { to { transform: rotate(360deg); } }</style>
+      </div>
+
+      <div style="display:flex;gap:10px;margin-top:8px;">
+        <button type="submit" class="btn btn-primary" style="flex:1;">
+          <i class="ti ti-{% if action == 'edit' %}check{% else %}plus{% endif %}"></i>
+          {{ 'Update Transaction' if action == 'edit' else 'Add Transaction' }}
+        </button>
+        <a href="{{ url_for('transactions.index') }}" class="btn" style="flex:0 0 auto;">Cancel</a>
+      </div>
+    </form>
+  </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+function setType(type) {
+  const incBtn = document.getElementById('btn-income');
+  const expBtn = document.getElementById('btn-expense');
+  const receipt = document.getElementById('receipt-section');
+
+  if (type === 'income') {
+    incBtn.style.cssText = 'text-align:center;padding:12px;border-radius:6px;border:2px solid var(--green);background:var(--green-lt);color:var(--green);font-weight:600;font-size:13px;transition:all 0.15s;';
+    expBtn.style.cssText = 'text-align:center;padding:12px;border-radius:6px;border:2px solid var(--border);background:var(--surface);color:var(--text-muted);font-weight:600;font-size:13px;transition:all 0.15s;';
+    if (receipt) receipt.style.display = 'none';
+  } else {
+    expBtn.style.cssText = 'text-align:center;padding:12px;border-radius:6px;border:2px solid var(--red);background:var(--red-lt);color:var(--red);font-weight:600;font-size:13px;transition:all 0.15s;';
+    incBtn.style.cssText = 'text-align:center;padding:12px;border-radius:6px;border:2px solid var(--border);background:var(--surface);color:var(--text-muted);font-weight:600;font-size:13px;transition:all 0.15s;';
+    if (receipt) receipt.style.display = 'block';
+  }
+}
+
+async function scanReceipt(input) {
+  if (!input.files[0]) return;
+  const status = document.getElementById('ocrStatus');
+  status.style.display = 'block';
+
+  const formData = new FormData();
+  formData.append('receipt', input.files[0]);
+
+  try {
+    const res = await fetch('{{ url_for("transactions.scan_receipt_route") }}', {
+      method: 'POST',
+      headers: { 'X-CSRFToken': '{{ csrf_token() }}' },
+      body: formData,
+    });
+    const data = await res.json();
+    if (data.success) {
+      if (data.amount) document.querySelector('[name=amount]').value = data.amount;
+      if (data.date)   document.querySelector('[name=date]').value = data.date;
+      if (data.merchant) document.querySelector('[name=description]').value = data.merchant;
+      status.innerHTML = '<i class="ti ti-check" style="color:var(--green)"></i> Receipt scanned successfully!';
+    } else {
+      status.innerHTML = '<i class="ti ti-alert-circle" style="color:var(--red)"></i> ' + (data.error || 'Could not extract data.');
+    }
+  } catch (e) {
+    status.innerHTML = '<i class="ti ti-alert-circle" style="color:var(--red)"></i> Scan failed. Fill in manually.';
+  }
+}
+</script>
+{% endblock %}
