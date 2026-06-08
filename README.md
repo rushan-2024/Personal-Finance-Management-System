@@ -11,8 +11,9 @@
 <img width="960" height="540" alt="dashboard-dark" src="https://github.com/user-attachments/assets/0c6deeec-b6cf-46e4-a3fe-31e3ec828186" />
 · Transactions <img width="960" height="540" alt="transactions" src="https://github.com/user-attachments/assets/f3ed72fa-0889-4c47-88d8-bde6a6f8626f" />
 <img width="960" height="540" alt="add-transaction" src="https://github.com/user-attachments/assets/afc2a5fa-b9e1-4c39-8bbc-ce197ba9df41" />
-> · Budgets <img width="960" height="540" alt="add-transaction" src="https://github.com/user-attachments/assets/3faaac75-80c4-4ab9-92fd-73cf7ec616c6" />
-> · Goals <img width="960" height="540" alt="add-transaction" src="https://github.com/user-attachments/assets/de223160-b67c-484d-8e2e-c71fbd09b326" />
+> · Budgets <img width="954" height="540" alt="budgets" src="https://github.com/user-attachments/assets/36a690c8-9de3-406c-b9ea-da3abeace0db" />
+> · Goals <img width="960" height="540" alt="goals" src="https://github.com/user-attachments/assets/557b9fe8-8d8f-4035-9fdc-8b83617acbf3" />
+
 > · Export Reports <img width="960" height="540" alt="reports" src="https://github.com/user-attachments/assets/5dcd189a-a999-4fdc-be65-3dfc033921b1" />
 
 ---
