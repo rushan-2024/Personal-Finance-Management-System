@@ -6,7 +6,14 @@
 
 ## 🖼️ Screenshots
 
-> Dashboard · Transactions · Budgets · Goals · AI Insights · Export Reports
+> Dashboard
+> <img width="960" height="540" alt="dashboard" src="https://github.com/user-attachments/assets/8e9a712c-f056-46cb-9f7c-063b660d9d8d" />
+<img width="960" height="540" alt="dashboard-dark" src="https://github.com/user-attachments/assets/0c6deeec-b6cf-46e4-a3fe-31e3ec828186" />
+· Transactions <img width="960" height="540" alt="transactions" src="https://github.com/user-attachments/assets/f3ed72fa-0889-4c47-88d8-bde6a6f8626f" />
+<img width="960" height="540" alt="add-transaction" src="https://github.com/user-attachments/assets/afc2a5fa-b9e1-4c39-8bbc-ce197ba9df41" />
+> · Budgets <img width="960" height="540" alt="add-transaction" src="https://github.com/user-attachments/assets/3faaac75-80c4-4ab9-92fd-73cf7ec616c6" />
+> · Goals <img width="960" height="540" alt="add-transaction" src="https://github.com/user-attachments/assets/de223160-b67c-484d-8e2e-c71fbd09b326" />
+> · Export Reports <img width="960" height="540" alt="reports" src="https://github.com/user-attachments/assets/5dcd189a-a999-4fdc-be65-3dfc033921b1" />
 
 ---
 
